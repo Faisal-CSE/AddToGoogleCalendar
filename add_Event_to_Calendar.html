@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Add Event to Google Calendar</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+</head>
+
+<style>
+    .addtoCalbtn{
+        margin-bottom: 8px;
+        padding: 5px;
+    }
+    .icon-padding{
+        padding-right: 5px;
+    }
+</style>
+
+<body>
+
+    <div class="jumbotron text-center">
+        <h3>Add To Google Calender</h3>
+    </div>
+
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12 col-sm-12 col-xs-12">
+                <div class="addtoCalbtn">
+                    <button id="authorize-button-action" onclick="addToGoogleCalAction();" class="btn btn-primary">
+                        <i class="fa fa-calendar icon-padding" aria-hidden="true"></i>Add To Calendar
+                    </button>
+                </div>
+
+                <div class="panel panel-danger" id="result-panel">
+                    <div class="panel-heading">
+                        <h3 class="panel-title" id="result-title">Application Not Authorized</h3>
+                    </div>
+                    <div class="panel-body">
+                        <p>Insert Your Event into Public Calendar&hellip;</p>
+                        <div id="event-response"></div>
+                    </div>
+                </div>
+                <p id="res1"></p>
+                <p id="res2"></p>
+                <p id="res3"></p>
+            </div>
+        </div>
+    </div>
+
+
+    <script type="text/javascript">
+        var isFromBtnClick = false;
+        // date variables
+        var now = new Date();
+        today = now.toISOString();
+
+        var twoHoursLater = new Date(now.getTime() + (2 * 1000 * 60 * 60));
+        twoHoursLater = twoHoursLater.toISOString();
+
+        
+        var twoHoursBefore = new Date(now.getTime() - (2 * 1000 * 60 * 60));
+        twoHoursBefore = twoHoursBefore.toISOString();
+        
+        document.getElementById('res1').innerHTML = 'Today: '+today;
+        document.getElementById('res2').innerHTML = 'Time: '+twoHoursLater;
+        document.getElementById('res3').innerHTML = 'Time: '+twoHoursBefore;
+
+        console.log("Today: "+today);
+        console.log("Time: "+twoHoursLater);
+        console.log("Time: "+twoHoursBefore);
+
+        // google api console clientID and apiKey (https://code.google.com/apis/console/#project:568391772772)
+        var clientId = 'YOUR_CLIENT_ID';
+        var apiKey = 'YOUR_API_KEY';
+
+        // enter the scope of current project (this API must be turned on in the google console)
+        var scopes = 'https://www.googleapis.com/auth/calendar';
+
+
+        // Oauth2 functions
+        function handleClientLoad() {
+            gapi.client.setApiKey(apiKey);
+            window.setTimeout(checkAuth, 1);
+        }
+
+        function addToGoogleCalAction(){
+            isFromBtnClick = true;
+            handleClientLoad();
+        }
+
+        function checkAuth() {
+            gapi.auth.authorize({ client_id: clientId, scope: scopes, immediate: true }, handleAuthResult);
+        }
+
+        // show/hide the 'authorize' button, depending on application state
+        function handleAuthResult(authResult) {
+            //var authorizeButton = document.getElementById('authorize-button');
+            var authorizeButton = document.getElementById('authorize-button-action');
+            var resultPanel = document.getElementById('result-panel');
+            var resultTitle = document.getElementById('result-title');
+
+            if(authResult && !authResult.error) {
+                console.log('Data:  '+authResult);
+                console.log('Data:  '+authResult.error);
+                console.log('Is From Button Click:  '+isFromBtnClick);
+
+                if(isFromBtnClick){
+                    resultPanel.className = resultPanel.className.replace(/(?:^|\s)panel-danger(?!\S)/g, '');
+                    resultPanel.className += ' panel-success';
+                    resultTitle.innerHTML = 'Application Authorized Test';
+                    makeApiCall();
+                }
+                
+            } 
+            else {
+                console.log('Is From Button Click1:  '+isFromBtnClick);
+                resultPanel.className += ' panel-danger';
+                // setup function to handle button click
+                authorizeButton.onclick = handleAuthClick;		
+            }
+        }
+
+        // function triggered when user authorizes app
+        function handleAuthClick(event) {
+            gapi.auth.authorize({ client_id: clientId, scope: scopes, immediate: false }, handleAuthResult);
+            return false;
+        }
+
+        // setup event details
+        var resource = {
+            "summary": "Mybdjobs Live Interview " + Math.floor((Math.random() * 10) + 1),
+            "start": {
+                //"dateTime": today
+                "dateTime": twoHoursBefore
+            },
+            "end": {
+                //"dateTime": twoHoursLater
+                "dateTime": today
+            }
+        };
+
+
+
+        // function load the calendar api and make the api call
+        function makeApiCall() {
+            console.log("makeApiCall");
+            // load the calendar api (version 3)
+            gapi.client.load('calendar', 'v3', function () {
+                var request = gapi.client.calendar.events.insert({
+                    // calendar ID
+                    'calendarId': 'primary',
+                    // pass event details with api call
+                    "resource": resource							
+                });
+
+                console.log("1");
+
+                // handle the response from our api call
+                request.execute(function (resp) {
+                    console.log("On Function");
+                    if (resp.status == 'confirmed') {
+                        document.getElementById('event-response').innerHTML = "Event created successfully. View it <a target='_blank' href='" + resp.htmlLink + "'>online here</a>.";
+                    } else {
+                        document.getElementById('event-response').innerHTML = "There was a problem. Reload page and try again after some times.";
+                    }
+
+                    console.log(resp);
+                });
+                console.log("2");
+            });
+            console.log("3");
+        }
+    </script>
+
+    <script src="https://apis.google.com/js/client.js?onload=handleClientLoad"></script>
+
+
+</body>
+
+</html>
